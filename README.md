@@ -88,5 +88,21 @@ opencode mcp list
 
 You should see `google-workspace connected`!
 
+## Customising the Google API Access
+
+By default, the server requests all five OAuth scopes. You can restrict this to only the APIs you actually use by editing the `SCOPES` array in `src/authorize.ts` before running `npm run auth`:
+
+```ts
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',   // Google Drive
+  'https://www.googleapis.com/auth/gmail.send',   // Gmail
+  'https://www.googleapis.com/auth/documents',    // Google Docs
+  'https://www.googleapis.com/auth/spreadsheets', // Google Sheets
+  'https://www.googleapis.com/auth/presentations' // Google Slides
+];
+```
+
+Remove any scopes you do not need, then re-run `npm run auth` to generate a new `token.json` with the reduced permissions. You must also disable the corresponding APIs in the Google Cloud Console under **APIs & Services > Library** if you want to prevent them from being callable at all.
+
 ## Security Note
 Do **not** commit your `credentials.json` or `token.json` files to version control. They provide access to your Google Account.

@@ -166,7 +166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       });
 
       return {
-        content: [{ type: 'text', text: `Successfully created file ${fileName} on Drive.\\nFile ID: ${res.data.id}` }]
+        content: [{ type: 'text', text: `Successfully created file ${fileName} on Drive.\nFile ID: ${res.data.id}` }]
       };
     }
 
@@ -183,7 +183,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       });
 
       return {
-        content: [{ type: 'text', text: `Successfully updated file on Drive.\\nFile ID: ${res.data.id}` }]
+        content: [{ type: 'text', text: `Successfully updated file on Drive.\nFile ID: ${res.data.id}` }]
       };
     }
 
@@ -199,7 +199,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         '',
         body
       ];
-      const message = messageParts.join('\\n');
+      const message = messageParts.join('\r\n');
       
       const encodedMessage = Buffer.from(message)
         .toString('base64')
