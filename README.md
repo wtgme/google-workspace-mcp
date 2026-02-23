@@ -1,6 +1,6 @@
-# Google Workspace MCP Server
+# Google Workspace MCP Server for Opencode
 
-A Model Context Protocol (MCP) server that connects to your Google Account to manage files and send emails. This server provides tools to create and update Google Drive files, Google Docs, Sheets, Slides, and send emails via Gmail.
+A Model Context Protocol (MCP) server built specifically for the **Opencode CLI** that connects to your Google Account to manage files and send emails. This server provides tools to create and update Google Drive files, Google Docs, Sheets, Slides, and send emails via Gmail.
 
 ## Tools Provided
 
@@ -57,20 +57,36 @@ npm run auth
 3. Review and grant the requested permissions.
 4. The script will automatically catch the redirect and save a `token.json` file in the root directory.
 
-### 4. Add to MCP Client
+### 4. Add to Opencode
 
-Add the server to your MCP client configuration (e.g., Claude Desktop, Cursor, etc.). Note that you need to specify the absolute path to the built `index.js` file.
+To make this MCP server globally available across all your Opencode workspaces, you need to add it to your global `opencode.json` configuration.
+
+Open your Opencode configuration file (usually located at `~/.config/opencode/opencode.json`) and add the `mcp` block with the absolute path to your built `index.js` file:
 
 ```json
 {
-  "mcpServers": {
+  ...
+  "mcp": {
     "google-workspace": {
-      "command": "node",
-      "args": ["/absolute/path/to/google-workspace-mcp/build/index.js"]
+      "type": "local",
+      "command": [
+        "node",
+        "/absolute/path/to/google-workspace-mcp/build/index.js"
+      ],
+      "enabled": true
     }
   }
 }
 ```
+
+*Note: Replace `/absolute/path/to/google-workspace-mcp/build/index.js` with the actual path on your machine.*
+
+Once added, verify the server is active by running:
+```bash
+opencode mcp list
+```
+
+You should see `google-workspace connected`!
 
 ## Security Note
 Do **not** commit your `credentials.json` or `token.json` files to version control. They provide access to your Google Account.
