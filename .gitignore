@@ -1,0 +1,8 @@
+node_modules/
+build/
+credentials.json
+token.json
+.env
+*.log
+test-email.ts
+create-doc.ts
