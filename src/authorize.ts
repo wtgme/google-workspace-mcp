@@ -12,8 +12,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/presentations'
 ];
 
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+const TOKEN_PATH = path.join(__dirname, '..', 'token.json');
+const CREDENTIALS_PATH = path.join(__dirname, '..', 'credentials.json');
 
 async function loadCredentials() {
   try {

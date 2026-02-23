@@ -5,8 +5,8 @@ import { google } from 'googleapis';
 import fs from 'fs/promises';
 import path from 'path';
 
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+const TOKEN_PATH = path.join(__dirname, '..', 'token.json');
+const CREDENTIALS_PATH = path.join(__dirname, '..', 'credentials.json');
 
 let authClient: any = null;
 
