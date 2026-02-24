@@ -40,7 +40,9 @@ const create_file_tool: Tool = {
     properties: {
       name: { type: 'string', description: 'Name of the file to create (e.g. document.txt)' },
       content: { type: 'string', description: 'Content to write into the file' },
-      mimeType: { type: 'string', description: 'MIME type of the file (e.g. text/plain)', default: 'text/plain' }
+      mimeType: { type: 'string', description: 'MIME type of the file (e.g. text/plain)', default: 'text/plain' },
+      folderId: { type: 'string', description: 'Optional. The Google Drive folder ID where the document should be created.' },
+      folderPath: { type: 'string', description: 'Optional. A string path like "MyFolder/Subfolder" where the document should be created. (Ignored if folderId is provided)' }
     },
     required: ['name', 'content']
   }
@@ -118,6 +120,49 @@ const add_google_slide_tool: Tool = {
   }
 };
 
+const create_google_doc_tool: Tool = {
+  name: 'create_google_doc',
+  description: 'Create a new Google Doc, optionally with initial text content, in a specific folder or path.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: 'The title of the new Google Doc' },
+      content: { type: 'string', description: 'Optional initial text content to insert into the document' },
+      folderId: { type: 'string', description: 'Optional. The Google Drive folder ID where the document should be created.' },
+      folderPath: { type: 'string', description: 'Optional. A string path like "MyFolder/Subfolder" where the document should be created. (Ignored if folderId is provided)' }
+    },
+    required: ['title']
+  }
+};
+
+const create_google_sheet_tool: Tool = {
+  name: 'create_google_sheet',
+  description: 'Create a new Google Sheet in a specific folder or path.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: 'The title of the new Google Sheet' },
+      folderId: { type: 'string', description: 'Optional. The Google Drive folder ID where the sheet should be created.' },
+      folderPath: { type: 'string', description: 'Optional. A string path like "MyFolder/Subfolder" where the sheet should be created. (Ignored if folderId is provided)' }
+    },
+    required: ['title']
+  }
+};
+
+const create_google_slide_tool: Tool = {
+  name: 'create_google_slide',
+  description: 'Create a new Google Slides presentation in a specific folder or path.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: 'The title of the new Google Slides presentation' },
+      folderId: { type: 'string', description: 'Optional. The Google Drive folder ID where the presentation should be created.' },
+      folderPath: { type: 'string', description: 'Optional. A string path like "MyFolder/Subfolder" where the presentation should be created. (Ignored if folderId is provided)' }
+    },
+    required: ['title']
+  }
+};
+
 const server = new Server({
   name: 'google-workspace-mcp',
   version: '1.0.0'
@@ -135,7 +180,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       send_gmail_tool,
       append_google_doc_tool,
       append_google_sheet_tool,
-      add_google_slide_tool
+      add_google_slide_tool,
+      create_google_doc_tool,
+      create_google_sheet_tool,
+      create_google_slide_tool
     ]
   };
 });
@@ -152,12 +200,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === 'create_drive_file') {
       const drive = google.drive({ version: 'v3', auth });
-      const { name: fileName, content, mimeType = 'text/plain' } = args as any;
+      const { name: fileName, content, mimeType = 'text/plain', folderId, folderPath } = args as any;
+
+      let parentId = folderId;
+      if (!parentId && folderPath) {
+        parentId = await getFolderIdByPath(drive, folderPath);
+      }
 
       const res = await drive.files.create({
         requestBody: {
           name: fileName,
-          mimeType: mimeType
+          mimeType: mimeType,
+          parents: parentId ? [parentId] : undefined
         },
         media: {
           mimeType: mimeType,
@@ -166,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       });
 
       return {
-        content: [{ type: 'text', text: `Successfully created file ${fileName} on Drive.\nFile ID: ${res.data.id}` }]
+        content: [{ type: 'text', text: `Successfully created file ${fileName} on Drive.\nFile ID: ${res.data.id}\nFolder ID: ${parentId || 'root'}` }]
       };
     }
 
@@ -312,6 +366,91 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    if (name === 'create_google_doc') {
+      const drive = google.drive({ version: 'v3', auth });
+      const docs = google.docs({ version: 'v1', auth });
+      const { title, content, folderId, folderPath } = args as any;
+
+      let parentId = folderId;
+      if (!parentId && folderPath) {
+        parentId = await getFolderIdByPath(drive, folderPath);
+      }
+
+      const res = await drive.files.create({
+        requestBody: {
+          name: title,
+          mimeType: 'application/vnd.google-apps.document',
+          parents: parentId ? [parentId] : undefined
+        }
+      });
+      
+      const documentId = res.data.id;
+
+      if (content && documentId) {
+        await docs.documents.batchUpdate({
+          documentId,
+          requestBody: {
+            requests: [
+              {
+                insertText: {
+                  location: { index: 1 },
+                  text: content
+                }
+              }
+            ]
+          }
+        });
+      }
+
+      return {
+        content: [{ type: 'text', text: `Successfully created Google Doc.\nTitle: ${res.data.name}\nDocument ID: ${documentId}\nFolder ID: ${parentId || 'root'}` }]
+      };
+    }
+
+    if (name === 'create_google_sheet') {
+      const drive = google.drive({ version: 'v3', auth });
+      const { title, folderId, folderPath } = args as any;
+
+      let parentId = folderId;
+      if (!parentId && folderPath) {
+        parentId = await getFolderIdByPath(drive, folderPath);
+      }
+
+      const res = await drive.files.create({
+        requestBody: {
+          name: title,
+          mimeType: 'application/vnd.google-apps.spreadsheet',
+          parents: parentId ? [parentId] : undefined
+        }
+      });
+
+      return {
+        content: [{ type: 'text', text: `Successfully created Google Sheet.\nTitle: ${res.data.name}\nSpreadsheet ID: ${res.data.id}\nFolder ID: ${parentId || 'root'}` }]
+      };
+    }
+
+    if (name === 'create_google_slide') {
+      const drive = google.drive({ version: 'v3', auth });
+      const { title, folderId, folderPath } = args as any;
+
+      let parentId = folderId;
+      if (!parentId && folderPath) {
+        parentId = await getFolderIdByPath(drive, folderPath);
+      }
+
+      const res = await drive.files.create({
+        requestBody: {
+          name: title,
+          mimeType: 'application/vnd.google-apps.presentation',
+          parents: parentId ? [parentId] : undefined
+        }
+      });
+
+      return {
+        content: [{ type: 'text', text: `Successfully created Google Slides presentation.\nTitle: ${res.data.name}\nPresentation ID: ${res.data.id}\nFolder ID: ${parentId || 'root'}` }]
+      };
+    }
+
     throw new Error(`Unknown tool: ${name}`);
   } catch (error: any) {
     return {
@@ -320,6 +459,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+
+async function getFolderIdByPath(drive: any, folderPath: string): Promise<string> {
+  if (!folderPath || folderPath === '/' || folderPath === '') return 'root';
+  const parts = folderPath.split('/').filter(p => p.length > 0);
+  let currentParent = 'root';
+  for (const part of parts) {
+    const query = `name = '${part.replace(/'/g, "\\'")}' and '${currentParent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    const res = await drive.files.list({ q: query, fields: 'files(id, name)' });
+    if (res.data.files && res.data.files.length > 0) {
+      currentParent = res.data.files[0].id;
+    } else {
+      throw new Error(`Folder not found in path: ${part}`);
+    }
+  }
+  return currentParent;
+}
 
 async function run() {
   const transport = new StdioServerTransport();
